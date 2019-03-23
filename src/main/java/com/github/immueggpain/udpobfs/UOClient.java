@@ -5,20 +5,14 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.security.Key;
 
 import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
-import org.apache.commons.lang3.ArrayUtils;
 
 import com.github.immueggpain.udpobfs.Launcher.ClientSettings;
 
 public class UOClient {
-
-	private SocketAddress last_app_sockaddr;
 
 	public void run(ClientSettings settings) {
 		try {
@@ -39,10 +33,11 @@ public class UOClient {
 			DatagramSocket cserver_s = new DatagramSocket();
 
 			// start working threads
-			Thread transfer_c2s_thread = Util.execAsync("transfer_c2s",
-					() -> transfer_c2s(sapp_s, encrypter, secretKey, server_addr, settings.server_port, cserver_s));
+			TunnelContext contxt = new TunnelContext();
+			Thread transfer_c2s_thread = Util.execAsync("transfer_c2s", () -> transfer_c2s(sapp_s, encrypter, secretKey,
+					server_addr, settings.server_port, cserver_s, contxt));
 			Thread transfer_s2c_thread = Util.execAsync("transfer_s2c",
-					() -> transfer_s2c(cserver_s, decrypter, secretKey, sapp_s));
+					() -> transfer_s2c(cserver_s, decrypter, secretKey, sapp_s, contxt));
 
 			transfer_c2s_thread.join();
 			transfer_s2c_thread.join();
@@ -51,15 +46,15 @@ public class UOClient {
 		}
 	}
 
-	private void transfer_c2s(DatagramSocket sapp_s, Cipher encrypter, Key secretKey, InetAddress server_addr,
-			int server_port, DatagramSocket cserver_s) {
+	private static void transfer_c2s(DatagramSocket sapp_s, Cipher encrypter, Key secretKey, InetAddress server_addr,
+			int server_port, DatagramSocket cserver_s, TunnelContext contxt) {
 		try {
 			byte[] recvBuf = new byte[4096];
 			DatagramPacket p = new DatagramPacket(recvBuf, recvBuf.length);
 			while (true) {
 				p.setData(recvBuf);
 				sapp_s.receive(p);
-				last_app_sockaddr = p.getSocketAddress();
+				contxt.app_sockaddr = p.getSocketAddress();
 				byte[] encrypted = Util.encrypt(encrypter, secretKey, p.getData(), p.getOffset(), p.getLength());
 				p.setData(encrypted);
 				p.setAddress(server_addr);
@@ -71,7 +66,8 @@ public class UOClient {
 		}
 	}
 
-	private void transfer_s2c(DatagramSocket cserver_s, Cipher decrypter, Key secretKey, DatagramSocket sapp_s) {
+	private static void transfer_s2c(DatagramSocket cserver_s, Cipher decrypter, Key secretKey, DatagramSocket sapp_s,
+			TunnelContext contxt) {
 		try {
 			byte[] recvBuf = new byte[4096];
 			DatagramPacket p = new DatagramPacket(recvBuf, recvBuf.length);
@@ -80,7 +76,7 @@ public class UOClient {
 				cserver_s.receive(p);
 				byte[] decrypted = Util.decrypt(decrypter, secretKey, p.getData(), p.getOffset(), p.getLength());
 				p.setData(decrypted);
-				p.setSocketAddress(last_app_sockaddr);
+				p.setSocketAddress(contxt.app_sockaddr);
 				sapp_s.send(p);
 			}
 		} catch (Exception e) {
@@ -88,21 +84,8 @@ public class UOClient {
 		}
 	}
 
-	public static byte[] encrypt(Cipher encrypter, Key secretKey, byte[] input, int offset, int length)
-			throws GeneralSecurityException {
-		// we need init every time because we want random iv
-		encrypter.init(Cipher.ENCRYPT_MODE, secretKey);
-		byte[] iv = encrypter.getIV();
-		byte[] encrypedBytes = encrypter.doFinal(input, offset, length);
-		return ArrayUtils.addAll(iv, encrypedBytes);
-	}
-
-	public static byte[] decrypt(Cipher decrypter, Key secretKey, byte[] input, int offset, int length)
-			throws GeneralSecurityException {
-		GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, input, offset, 12);
-		decrypter.init(Cipher.DECRYPT_MODE, secretKey, gcmParameterSpec);
-		byte[] decryptedBytes = decrypter.doFinal(input, offset + 12, length - 12);
-		return decryptedBytes;
+	private static class TunnelContext {
+		private SocketAddress app_sockaddr;
 	}
 
 }
