@@ -52,8 +52,8 @@ public class Launcher {
 				.argName("MODE").build());
 		options.addOption(Option.builder("w").longOpt(password).hasArg()
 				.desc("password of server or client, must be same, recommend 64 bytes").argName("PASSWORD").build());
-		options.addOption(
-				Option.builder("c").longOpt(client_port).hasArg().desc("client port").argName("PORT").build());
+		options.addOption(Option.builder("c").longOpt(client_port).hasArg().desc("client listening port")
+				.argName("PORT").build());
 		options.addOption(Option.builder("s").longOpt(server_ip).hasArg().desc("server ip").argName("IP").build());
 		options.addOption(
 				Option.builder("p").longOpt(server_port).hasArg().desc("server port").argName("PORT").build());
