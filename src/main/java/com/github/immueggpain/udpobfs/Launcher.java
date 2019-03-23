@@ -12,17 +12,16 @@ public class Launcher {
 	private static final String VERSTR = "0.1.0";
 
 	public static class ClientSettings {
+		public String password;
 		public String server_ip;
 		public int server_port;
-		public String password;
-		public String tap_ip;
-		public String tap_mask;
+		public int client_port;
 	}
 
 	public static class ServerSettings {
 		public String password;
 		public int server_port;
-		public int local_ovpn_port;
+		public int dest_port;
 	}
 
 	public static void main(String[] args) {
@@ -41,11 +40,10 @@ public class Launcher {
 		String help = "help";
 		String mode = "mode";
 		String password = "password";
+		String client_port = "client_port";
 		String server_ip = "server_ip";
 		String server_port = "server_port";
-		String tap_ip = "tap_ip";
-		String tap_mask = "tap_mask";
-		String local_ovpn_port = "local_ovpn_port";
+		String dest_port = "dest_port";
 
 		// define options
 		Options options = new Options();
@@ -54,15 +52,13 @@ public class Launcher {
 				.argName("MODE").build());
 		options.addOption(Option.builder("w").longOpt(password).hasArg()
 				.desc("password of server or client, must be same, recommend 64 bytes").argName("PASSWORD").build());
+		options.addOption(
+				Option.builder("c").longOpt(client_port).hasArg().desc("client port").argName("PORT").build());
 		options.addOption(Option.builder("s").longOpt(server_ip).hasArg().desc("server ip").argName("IP").build());
 		options.addOption(
 				Option.builder("p").longOpt(server_port).hasArg().desc("server port").argName("PORT").build());
 		options.addOption(
-				Option.builder("i").longOpt(tap_ip).hasArg().desc("IP of your new virtual LAN").argName("IP").build());
-		options.addOption(Option.builder("a").longOpt(tap_mask).hasArg().desc("IP mask of your new virtual LAN")
-				.argName("IP MASK").build());
-		options.addOption(Option.builder("o").longOpt(local_ovpn_port).hasArg().desc("port of the local openvpn")
-				.argName("PORT").build());
+				Option.builder("d").longOpt(dest_port).hasArg().desc("destination port").argName("PORT").build());
 
 		// parse from cmd args
 		DefaultParser parser = new DefaultParser();
@@ -84,7 +80,7 @@ public class Launcher {
 			ServerSettings settings = new ServerSettings();
 			settings.password = cmd.getOptionValue(password);
 			settings.server_port = Integer.parseInt(cmd.getOptionValue(server_port));
-			settings.local_ovpn_port = Integer.parseInt(cmd.getOptionValue(local_ovpn_port));
+			settings.dest_port = Integer.parseInt(cmd.getOptionValue(dest_port));
 			try {
 				new UOServer().run(settings);
 			} catch (Exception e) {
@@ -97,8 +93,7 @@ public class Launcher {
 			settings.server_ip = cmd.getOptionValue(server_ip);
 			settings.server_port = Integer.parseInt(cmd.getOptionValue(server_port));
 			settings.password = cmd.getOptionValue(password);
-			settings.tap_ip = cmd.getOptionValue(tap_ip);
-			settings.tap_mask = cmd.getOptionValue(tap_mask);
+			settings.client_port = Integer.parseInt(cmd.getOptionValue(client_port));
 			try {
 				new UOClient().run(settings);
 			} catch (Exception e) {
